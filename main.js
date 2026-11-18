@@ -41,13 +41,23 @@ function mount(){
   if(!cache.has(ch))cache.set(ch,sculpt(ch,material));
   const mesh=new T.Mesh(cache.get(ch),material); group.add(mesh);return mesh;
  });
- const tilt=[.13,.08,-.11,.10,-.10,-.15],heights=[.22,.38,-.20,.10,-.36,.16];
+ const tilt=[.13,.08,-.11,.10,-.10,-.15],heights=[.187,.323,-.17,.085,-.306,.136];
+ const pitch=[-.09,.12,.08,-.14,.07,-.08];
+ const hover=letters.map(()=>0);
+ const floats=letters.map(()=>({
+  phase:Math.random()*2*Math.PI,
+  speed:2*Math.PI/(3.6+Math.random()*2),
+  amplitude:.09+Math.random()*.045
+ }));
+ const raycaster=new T.Raycaster(),cursor=new T.Vector2();
+ let hovered=null;
  function resize(){
+  hovered=null;
   const w=innerWidth,h=innerHeight,aspect=w/h;
   letters.forEach((m,i)=>{
-   m.position.set((i-2.5)*1.58,heights[i]*.85,[.32,-.16,.23,-.12,.26,-.24][i]);
+   m.position.set((i-2.5)*1.58,heights[i],[.32,-.16,.23,-.12,.26,-.24][i]);
    m.scale.set(1,Math.max(1,Math.min(1.65,2.42/aspect)),1);
-   m.rotation.set([-.09,.12,.08,-.14,.07,-.08][i],[-.18,.19,-.12,.22,-.20,.14][i],tilt[i]);
+   m.rotation.set(pitch[i],[-.18,.19,-.12,.22,-.20,.14][i],tilt[i]);
   });
   const width=Math.max(aspect<1?10.55:10.05,3.95*aspect);
   camera.left=-width/2;camera.right=width/2;camera.top=width/aspect/2;camera.bottom=-camera.top;camera.updateProjectionMatrix();
@@ -56,15 +66,33 @@ function mount(){
  resize();const motion=matchMedia('(prefers-reduced-motion: reduce)');
  let mx=0,my=0,rx=0,ry=0,start=performance.now(),previous=start;
  function draw(now){
-  const t=(now-start)/1000,k=1-Math.exp(-Math.min(.1,(now-previous)/1000)*4);previous=now;
+  const dt=Math.min(.1,(now-previous)/1000);
+  const t=(now-start)/1000,k=1-Math.exp(-dt*4);previous=now;
   rx+=(mx-rx)*k;ry+=(my-ry)*k;
   const intro=Math.pow(Math.max(0,1-t/1.9),3);
   group.rotation.set(motion.matches?0:ry*.052+intro*.09,motion.matches?0:rx*.085+.012*Math.sin(t*.4)-intro*.12,0);
   group.position.y=motion.matches?0:.012*Math.sin(t*.6)-intro*.12;
+  letters.forEach((letter,i)=>{
+   const target=letter===hovered?1:0;
+   const {phase,speed,amplitude}=floats[i];
+   const drift=motion.matches?0:amplitude*Math.sin(t*speed+phase);
+   hover[i]=motion.matches?0:hover[i]+(target-hover[i])*(1-(1-k)**2);
+   letter.rotation.x=pitch[i]+.14*hover[i];
+   letter.position.y=heights[i]+drift+.065*hover[i];
+  });
   renderer.render(scene,camera);
  }
- const pointer=e=>{if(e.pointerType==='mouse'){mx=e.clientX/innerWidth*2-1;my=e.clientY/innerHeight*2-1;}};
- const reset=()=>{mx=my=0;};
+ const pointer=e=>{
+  hovered=null;
+  if(e.pointerType==='touch'||motion.matches)return;
+  mx=e.clientX/innerWidth*2-1;
+  my=e.clientY/innerHeight*2-1;
+  if(e.target!==canvas)return;
+  cursor.set(mx,-my);
+  raycaster.setFromCamera(cursor,camera);
+  hovered=raycaster.intersectObjects(letters,false)[0]?.object;
+ };
+ const reset=()=>{mx=my=0;hovered=null;};
  const loop=()=>renderer.setAnimationLoop(document.hidden||motion.matches?null:draw);
  const update=()=>{resize();draw(performance.now());loop();};
  const listeners=[[window,'resize',update],[window,'pointermove',pointer],[document,'pointerleave',reset],[document,'visibilitychange',loop],[motion,'change',update]];
