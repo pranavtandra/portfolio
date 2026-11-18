@@ -37,12 +37,13 @@ function mount(){
  gl_FragColor=vec4(vec3(tone),1.);}`
  });
  const cache=new Map();
- const letters=[...'PRANAV'].map(ch=>{
+ const letters=[...'PRANAVTANDRA'].map(ch=>{
   if(!cache.has(ch))cache.set(ch,sculpt(ch,material));
   const mesh=new T.Mesh(cache.get(ch),material); group.add(mesh);return mesh;
  });
  const tilt=[.13,.08,-.11,.10,-.10,-.15],heights=[.187,.323,-.17,.085,-.306,.136];
  const pitch=[-.09,.12,.08,-.14,.07,-.08];
+ const baseline=letters.map(()=>0);
  const hover=letters.map(()=>0);
  const floats=letters.map(()=>({
   phase:Math.random()*2*Math.PI,
@@ -54,12 +55,16 @@ function mount(){
  function resize(){
   hovered=null;
   const w=innerWidth,h=innerHeight,aspect=w/h;
+  const width=Math.max(10.55,5.7*aspect);
+  const verticalScale=Math.min(1.4,width/aspect/8.2);
   letters.forEach((m,i)=>{
-   m.position.set((i-2.5)*1.58,heights[i],[.32,-.16,.23,-.12,.26,-.24][i]);
-   m.scale.set(1,Math.max(1,Math.min(1.65,2.42/aspect)),1);
-   m.rotation.set(pitch[i],[-.18,.19,-.12,.22,-.20,.14][i],tilt[i]);
+   const column=i%6;
+   const rowCenter=i<6?1.88:-1.88;
+   baseline[i]=(rowCenter+heights[column]*.45)*verticalScale;
+   m.position.set((column-2.5)*1.58,baseline[i],[.32,-.16,.23,-.12,.26,-.24][column]);
+   m.scale.set(1,verticalScale,1);
+   m.rotation.set(pitch[column],[-.18,.19,-.12,.22,-.20,.14][column],tilt[column]);
   });
-  const width=Math.max(aspect<1?10.55:10.05,3.95*aspect);
   camera.left=-width/2;camera.right=width/2;camera.top=width/aspect/2;camera.bottom=-camera.top;camera.updateProjectionMatrix();
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.75,Math.sqrt(3600000/(w*h))));renderer.setSize(w,h,false);
  }
@@ -77,8 +82,8 @@ function mount(){
    const {phase,speed,amplitude}=floats[i];
    const drift=motion.matches?0:amplitude*Math.sin(t*speed+phase);
    hover[i]=motion.matches?0:hover[i]+(target-hover[i])*(1-(1-k)**2);
-   letter.rotation.x=pitch[i]+.14*hover[i];
-   letter.position.y=heights[i]+drift+.065*hover[i];
+   letter.rotation.x=pitch[i%6]+.14*hover[i];
+   letter.position.y=baseline[i]+drift+.065*hover[i];
   });
   renderer.render(scene,camera);
  }
