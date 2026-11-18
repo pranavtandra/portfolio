@@ -44,7 +44,7 @@ function mount(){
  const tilt=[.13,.08,-.11,.10,-.10,-.15],heights=[.187,.323,-.17,.085,-.306,.136];
  const pitch=[-.09,.12,.08,-.14,.07,-.08];
  const baseline=letters.map(()=>0);
- const hover=letters.map(()=>0);
+ const hover=letters.map(()=>({weight:0,velocity:0}));
  const floats=letters.map(()=>({
   phase:Math.random()*2*Math.PI,
   speed:2*Math.PI/(3.6+Math.random()*2),
@@ -81,9 +81,21 @@ function mount(){
    const target=letter===hovered?1:0;
    const {phase,speed,amplitude}=floats[i];
    const drift=motion.matches?0:amplitude*Math.sin(t*speed+phase);
-   hover[i]=motion.matches?0:hover[i]+(target-hover[i])*(1-(1-k)**2);
-   letter.rotation.x=pitch[i%6]+.14*hover[i];
-   letter.position.y=baseline[i]+drift+.065*hover[i];
+   const response=hover[i];
+   if(motion.matches){
+    response.weight=0;
+    response.velocity=0;
+   }else{
+    // A critically damped spring keeps velocity continuous on entry and exit.
+    const rate=7;
+    const offset=response.weight-target;
+    const slope=response.velocity+rate*offset;
+    const decay=Math.exp(-rate*dt);
+    response.weight=target+(offset+slope*dt)*decay;
+    response.velocity=(response.velocity-rate*slope*dt)*decay;
+   }
+   letter.rotation.x=pitch[i%6]+.085*response.weight;
+   letter.position.y=baseline[i]+drift;
   });
   renderer.render(scene,camera);
  }
